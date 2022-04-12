@@ -17,4 +17,6 @@ bool ReadWriteCopyFile(char* originPath, char* fileName, char* destinationPath);
 
 List* GetFilesFromDirectory(char* directoryPath);
 
+bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool withDirectories);
+
 #endif

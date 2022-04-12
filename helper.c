@@ -188,11 +188,13 @@ bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool wit
 List* GetFilesFromDirectory(char* directoryPath) {
 	List* output = malloc(sizeof(List));
 	Init(output);
-
+	printf("test\n");
+	printf(directoryPath);
 	DIR* dir = opendir (directoryPath);
 	char entry_path[PATH_MAX + 1];
 	int path_len = strlen(directoryPath);
 	struct dirent* entry;
+	printf("\ntest\n");
 	while ((entry = readdir (dir)) != NULL) {
         strncpy (entry_path + path_len, entry->d_name,
         sizeof (entry_path) - path_len);
@@ -206,8 +208,9 @@ List* GetFilesFromDirectory(char* directoryPath) {
 		} else {
 			temp->timestamp = GetTimestamp(entry_path);
 		}
-
+printf("test\n");
 		Add(output, temp);
+		printf("    test2\n");
     }
 
 	return output;
