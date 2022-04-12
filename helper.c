@@ -75,7 +75,7 @@ bool DeleteDirectory(char* path) {
 char* CombinePaths(char* p1, char* p2) {
 	char* path = malloc(sizeof(char) * (PATH_MAX - 1));
 	size_t p1Length = strlen(p1);
-	if(path[p1Length - 1] != '\\' && p2[0] != '\\') {
+	if(p1[p1Length - 1] != '\\' && p2[0] != '\\') {
 		sprintf(path, "%s\\%s", p1, p2);
 		return path;
 	}
@@ -195,9 +195,9 @@ List* GetFilesFromDirectory(char* directoryPath) {
 	struct dirent* entry;
 	printf("\ntest\n");
 	while ((entry = readdir (dir)) != NULL) {
+		printf("test\n %d", sizeof(File));
         char* path = CombinePaths(directoryPath, entry->d_name);
         int type = GetFileType (path);
-		printf("test\n %d", sizeof(File));
 		File* temp = malloc(sizeof(File));
 		temp->isDirectory = true;
 		temp->path = path;
