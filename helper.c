@@ -6,6 +6,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <stdio.h>
+#include <fcntl.h>
 #include "helper.h"
 #include "list.h"
 
@@ -45,13 +47,14 @@ int GetFileType(char* path) {
 long GetTimestamp(char* path) {
 	struct stat st;
     lstat (path, &st);
-    return st->st_mtime;
+    return st.st_mtime;
 }
 
 bool DeleteDirectory(char* path) {
-	DIR* dir = opendir (dir_path);
+	DIR* dir = opendir (path);
 	char entry_path[PATH_MAX + 1];
 	struct dirent* entry;
+	size_t path_len = strlen(path);
 	while ((entry = readdir (dir)) != NULL) {
         const char* type;
         strncpy (entry_path + path_len, entry->d_name,
@@ -73,7 +76,8 @@ bool DeleteDirectory(char* path) {
 
 char* CombinePaths(char* p1, char* p2) {
 	char* path = malloc(sizeof(char) * (PATH_MAX - 1));
-	if(path[textIndex-1] != '\\' && p2[0] != '\\') {
+	size_t p1Length = strlen(p1);
+	if(path[p1Length - 1] != '\\' && p2[0] != '\\') {
 		sprintf(path, "%s\\%s", p1, p2);
 		return path;
 	}
@@ -102,7 +106,7 @@ bool ReadWriteCopyFile(char* originPath, char* fileName, char* destinationPath) 
 		} else {
 			size_t readBytesCount = 0;
 			do {
-				readBytesCount = read(originalFile, buffer, sizeof(buffer));
+				readBytesCount = read(originalFile, buffor, sizeof(buffor));
 				
 				if(readBytesCount == -1) {
 					ReportError(errno);
@@ -110,7 +114,7 @@ bool ReadWriteCopyFile(char* originPath, char* fileName, char* destinationPath) 
 					break;
 				}
 				
-				int result = write(destinationFile, buffer, readBytesCount);
+				int result = write(destinationFile, buffor, readBytesCount);
 				
 				if(result == -1) {
 					ReportError(errno);
@@ -141,9 +145,6 @@ bool UpdateFile(char* originPath, char* fileName, char* destinationPath) {
 }
 
 bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool withDirectories) {
-	DIR* dir = opendir (dir_path);
-	char entry_path[PATH_MAX + 1];
-	struct dirent* entry;
 	List* originFiles = GetFilesFromDirectory(originDirectory);
 	List* destinationFiles = GetFilesFromDirectory(destinationDirectory);
 
@@ -154,7 +155,7 @@ bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool wit
 		File* current = At(originFiles, index);
 		if(index >= 0) {
 			if(current->isDirectory && withDirectories) {
-				result &= UpdateDirectory(CombinePaths(originDirectory, current->path), CombinePaths(destinationDirectory, current->path), withDirectories)
+				result &= UpdateDirectory(CombinePaths(originDirectory, current->path), CombinePaths(destinationDirectory, current->path), withDirectories);
 			} else if(current->isDirectory == false) {
 				if(At(destinationFiles, index)->timestamp < current->timestamp) {
 					result &= UpdateFile(originDirectory, current->path, destinationDirectory);
@@ -190,11 +191,10 @@ List* GetFilesFromDirectory(char* directoryPath) {
 	List* output = malloc(sizeof(List));
 	Init(output);
 
-	DIR* dir = opendir (dir_path);
+	DIR* dir = opendir (directoryPath);
 	char entry_path[PATH_MAX + 1];
 	struct dirent* entry;
 	while ((entry = readdir (dir)) != NULL) {
-        const char* type;
         strncpy (entry_path + path_len, entry->d_name,
         sizeof (entry_path) - path_len);
         int type = GetFileType (entry_path);
