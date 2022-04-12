@@ -15,11 +15,10 @@
 #define DIRECTORY_TYPE 2
 
 void ReportError(int errNo) {
-	
+	perror("");
 }
 
 void ReportTrace(char* text) {
-
 }
 
 bool DeleteFile(char* path) {
@@ -147,7 +146,6 @@ bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool wit
 	List* destinationFiles = GetFilesFromDirectory(destinationDirectory);
 
 	bool result = true;
-
 	for(int i = 0; i < originFiles->length; i++) {
 		File* current = At(originFiles, i);
 		int index = IndexOf(destinationFiles, current->path);
@@ -160,7 +158,7 @@ bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool wit
 				}
 			}
 		} else {
-			if(current->isDirectory && withDirectories) {
+			if(current->isDirectory == true && withDirectories) {
 				//createDir
 				//Update new directory
 			} else if(current->isDirectory == false) {
@@ -188,33 +186,28 @@ bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool wit
 List* GetFilesFromDirectory(char* directoryPath) {
 	List* output = malloc(sizeof(List));
 	Init(output);
-	printf("test\n");
-	printf(directoryPath);
 	DIR* dir = opendir (directoryPath);
 	int path_len = strlen(directoryPath);
 	struct dirent* entry;
-	printf("\ntest\n");
 	while (dir != NULL && (entry = readdir (dir)) != NULL) {
 		if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) {
 			continue;
 		}
 
-		printf("test\n %d", sizeof(File));
         char* path = CombinePaths(directoryPath, entry->d_name);
         int type = GetFileType (path);
 		File* temp = malloc(sizeof(File));
-		temp->isDirectory = true;
 		temp->path = path;
 		
 		if(type == DIRECTORY_TYPE) {
+			temp->isDirectory = true;
 			temp->timestamp = -1;
 		} else {
+			temp->isDirectory = false;
 			temp->timestamp = GetTimestamp(path);
 		}
-		printf("test\n");
 		Add(output, temp);
-		printf("    test2\n");
     }
-	printf("Koniec");
+
 	return output;
 }
