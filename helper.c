@@ -194,7 +194,11 @@ List* GetFilesFromDirectory(char* directoryPath) {
 	int path_len = strlen(directoryPath);
 	struct dirent* entry;
 	printf("\ntest\n");
-	while ((entry = readdir (dir)) != NULL) {
+	while (dir != NULL && (entry = readdir (dir)) != NULL) {
+		if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..")) {
+			continue;
+		}
+
 		printf("test\n %d", sizeof(File));
         char* path = CombinePaths(directoryPath, entry->d_name);
         int type = GetFileType (path);
@@ -211,6 +215,6 @@ List* GetFilesFromDirectory(char* directoryPath) {
 		Add(output, temp);
 		printf("    test2\n");
     }
-
+	printf("Koniec");
 	return output;
 }
