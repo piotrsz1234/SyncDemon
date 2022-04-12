@@ -13,7 +13,6 @@
 
 #define FILE_TYPE 1
 #define DIRECTORY_TYPE 2
-#define PATH_MAX 2000
 
 void ReportError(int errNo) {
 	
@@ -56,7 +55,6 @@ bool DeleteDirectory(char* path) {
 	struct dirent* entry;
 	size_t path_len = strlen(path);
 	while ((entry = readdir (dir)) != NULL) {
-        const char* type;
         strncpy (entry_path + path_len, entry->d_name,
         sizeof (entry_path) - path_len);
         int type = GetFileType (entry_path);
@@ -89,7 +87,7 @@ bool ReadWriteCopyFile(char* originPath, char* fileName, char* destinationPath) 
 	char* buffor = malloc(sizeof(char) * 1024 * 1024);
 	int bufforSize = 1024 * 1024;
 	char* originFilePath = CombinePaths(originPath, fileName);
-	char* desitnationFilePath = CombinePaths(destinationPath, fileName);
+	char* destinationFilePath = CombinePaths(destinationPath, fileName);
 	mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH; 
 	bool output = true;
 	
@@ -151,8 +149,7 @@ bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool wit
 	bool result = true;
 
 	for(int i = 0; i < originFiles->length; i++) {
-		int index = IndexOf(destinationFiles, At(originFiles, i)->path);
-		File* current = At(originFiles, index);
+		File* current = At(originFiles, i);
 		if(index >= 0) {
 			if(current->isDirectory && withDirectories) {
 				result &= UpdateDirectory(CombinePaths(originDirectory, current->path), CombinePaths(destinationDirectory, current->path), withDirectories);
@@ -172,7 +169,7 @@ bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool wit
 	}
     
 	for(int i = 0; i < destinationFiles->length; i++) {
-		File* current = At(destinationFiles, index);
+		File* current = At(destinationFiles, i);
 		if(IndexOf(originFiles, current->path) < 0) {
 			char* path = CombinePaths(destinationDirectory, current->path);
 			if(current->isDirectory) {
@@ -193,6 +190,7 @@ List* GetFilesFromDirectory(char* directoryPath) {
 
 	DIR* dir = opendir (directoryPath);
 	char entry_path[PATH_MAX + 1];
+	int path_len = strlen(directoryPath);
 	struct dirent* entry;
 	while ((entry = readdir (dir)) != NULL) {
         strncpy (entry_path + path_len, entry->d_name,
@@ -208,7 +206,7 @@ List* GetFilesFromDirectory(char* directoryPath) {
 			temp->timestamp = GetTimestamp(entry_path);
 		}
 
-		Add(list, temp);
+		Add(output, temp);
     }
 
 	return output;
