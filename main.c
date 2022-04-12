@@ -1,4 +1,4 @@
-#include "helper.c"
+#include "helper.h"
 #include <stdbool.h>
 
 int main() {
