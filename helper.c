@@ -98,7 +98,7 @@ bool ReadWriteCopyFile(char* originPath, char* fileName, char* destinationPath) 
 		output = false;
 	} else {
 		int destinationFile = open(destinationFilePath, O_WRONLY | O_TRUNC | O_CREAT, mode);
-		if(destinatinoFile == -1) {
+		if(destinationFile == -1) {
 			ReportError(errno);
 			output = false;
 		} else {
@@ -150,6 +150,7 @@ bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool wit
 
 	for(int i = 0; i < originFiles->length; i++) {
 		File* current = At(originFiles, i);
+		int index = IndexOf(destinationFiles, current->path);
 		if(index >= 0) {
 			if(current->isDirectory && withDirectories) {
 				result &= UpdateDirectory(CombinePaths(originDirectory, current->path), CombinePaths(destinationDirectory, current->path), withDirectories);

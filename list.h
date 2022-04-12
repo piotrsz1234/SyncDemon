@@ -23,7 +23,7 @@ void Init(List* list);
 
 void Add(List* list, File* value);
 
-File* At(List* list, int index);
+File *At(List *list, int index);
 
 void RemoveAt(List* list, int index);
 
