@@ -195,7 +195,7 @@ List* GetFilesFromDirectory(char* directoryPath) {
 	struct dirent* entry;
 	printf("\ntest\n");
 	while (dir != NULL && (entry = readdir (dir)) != NULL) {
-		if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..")) {
+		if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) {
 			continue;
 		}
 
