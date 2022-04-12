@@ -77,8 +77,10 @@ char* CombinePaths(char* p1, char* p2) {
 	if(p1[p1Length - 1] != '\\' && p2[0] != '\\') {
 		sprintf(path, "%s\\%s", p1, p2);
 		return path;
+	}else {
+		sprintf(path, "%s%s", p1, p2);
 	}
-	sprintf(path, "%s%s", p1, p2);
+	
 	return path;
 }
 
