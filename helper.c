@@ -76,11 +76,10 @@ char* CombinePaths(char* p1, char* p2) {
 	size_t p1Length = strlen(p1);
 	if(p1[p1Length - 1] != '\\' && p2[0] != '\\') {
 		sprintf(path, "%s\\%s", p1, p2);
-		return path;
-	}else {
+	} else {
 		sprintf(path, "%s%s", p1, p2);
 	}
-	
+
 	return path;
 }
 
@@ -199,7 +198,7 @@ List* GetFilesFromDirectory(char* directoryPath) {
         char* path = CombinePaths(directoryPath, entry->d_name);
         int type = GetFileType (path);
 		File* temp = malloc(sizeof(File));
-		temp->path = path;
+		temp->path = entry->d_name;
 		
 		if(type == DIRECTORY_TYPE) {
 			temp->isDirectory = true;
