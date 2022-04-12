@@ -191,24 +191,23 @@ List* GetFilesFromDirectory(char* directoryPath) {
 	printf("test\n");
 	printf(directoryPath);
 	DIR* dir = opendir (directoryPath);
-	char entry_path[PATH_MAX + 1];
 	int path_len = strlen(directoryPath);
 	struct dirent* entry;
 	printf("\ntest\n");
 	while ((entry = readdir (dir)) != NULL) {
-        strncpy (entry_path + path_len, entry->d_name,
-        sizeof (entry_path) - path_len);
-        int type = GetFileType (entry_path);
+        char* path = CombinePaths(directoryPath, entry->d_name);
+        int type = GetFileType (path);
+		printf("test\n %d", sizeof(File));
 		File* temp = malloc(sizeof(File));
 		temp->isDirectory = true;
-		temp->path = CombinePaths("", entry->d_name);
+		temp->path = path;
 		
 		if(type == DIRECTORY_TYPE) {
 			temp->timestamp = -1;
 		} else {
-			temp->timestamp = GetTimestamp(entry_path);
+			temp->timestamp = GetTimestamp(path);
 		}
-printf("test\n");
+		printf("test\n");
 		Add(output, temp);
 		printf("    test2\n");
     }
