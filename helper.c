@@ -3,12 +3,14 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <errno.h>
 #include "helper.h"
 #include "list.h"
 
 #define FILE_TYPE 1
 #define DIRECTORY_TYPE 2
+#define PATH_MAX 2000
 
 void ReportError(int errNo) {
 	
@@ -180,7 +182,7 @@ bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool wit
 		}
 	}
 
-    return true;
+    return result;
 }
 
 List* GetFilesFromDirectory(char* directoryPath) {
