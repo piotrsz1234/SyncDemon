@@ -1,3 +1,6 @@
+#ifndef LIST_H
+#define LIST_H
+
 #include <stdbool.h>
 
 typedef struct File_t {
@@ -20,7 +23,7 @@ void Init(List* list);
 
 void Add(List* list, File* value);
 
-File* At(List* list, int index);
+File *At(List *list, int index);
 
 void RemoveAt(List* list, int index);
 
@@ -28,4 +31,4 @@ int IndexOf(List* list, char* value);
 
 void Dispose(List* list);
 
-bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool withDirectories);
+#endif

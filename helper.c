@@ -2,8 +2,12 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <dirent.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <errno.h>
+#include <stdio.h>
+#include <fcntl.h>
 #include "helper.h"
 #include "list.h"
 
@@ -11,11 +15,10 @@
 #define DIRECTORY_TYPE 2
 
 void ReportError(int errNo) {
-	
+	perror("");
 }
 
 void ReportTrace(char* text) {
-
 }
 
 bool DeleteFile(char* path) {
@@ -42,15 +45,15 @@ int GetFileType(char* path) {
 long GetTimestamp(char* path) {
 	struct stat st;
     lstat (path, &st);
-    return st->st_mtime;
+    return st.st_mtime;
 }
 
 bool DeleteDirectory(char* path) {
-	DIR* dir = opendir (dir_path);
+	DIR* dir = opendir (path);
 	char entry_path[PATH_MAX + 1];
 	struct dirent* entry;
+	size_t path_len = strlen(path);
 	while ((entry = readdir (dir)) != NULL) {
-        const char* type;
         strncpy (entry_path + path_len, entry->d_name,
         sizeof (entry_path) - path_len);
         int type = GetFileType (entry_path);
@@ -70,11 +73,13 @@ bool DeleteDirectory(char* path) {
 
 char* CombinePaths(char* p1, char* p2) {
 	char* path = malloc(sizeof(char) * (PATH_MAX - 1));
-	if(path[textIndex-1] != '\\' && p2[0] != '\\') {
+	size_t p1Length = strlen(p1);
+	if(p1[p1Length - 1] != '\\' && p2[0] != '\\') {
 		sprintf(path, "%s\\%s", p1, p2);
-		return path;
+	} else {
+		sprintf(path, "%s%s", p1, p2);
 	}
-	sprintf(path, "%s%s", p1, p2);
+
 	return path;
 }
 
@@ -82,7 +87,7 @@ bool ReadWriteCopyFile(char* originPath, char* fileName, char* destinationPath) 
 	char* buffor = malloc(sizeof(char) * 1024 * 1024);
 	int bufforSize = 1024 * 1024;
 	char* originFilePath = CombinePaths(originPath, fileName);
-	char* desitnationFilePath = CombinePaths(destinationPath, fileName);
+	char* destinationFilePath = CombinePaths(destinationPath, fileName);
 	mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH; 
 	bool output = true;
 	
@@ -93,13 +98,13 @@ bool ReadWriteCopyFile(char* originPath, char* fileName, char* destinationPath) 
 		output = false;
 	} else {
 		int destinationFile = open(destinationFilePath, O_WRONLY | O_TRUNC | O_CREAT, mode);
-		if(destinatinoFile == -1) {
+		if(destinationFile == -1) {
 			ReportError(errno);
 			output = false;
 		} else {
 			size_t readBytesCount = 0;
 			do {
-				readBytesCount = read(originalFile, buffer, sizeof(buffer));
+				readBytesCount = read(originalFile, buffor, sizeof(buffor));
 				
 				if(readBytesCount == -1) {
 					ReportError(errno);
@@ -107,7 +112,7 @@ bool ReadWriteCopyFile(char* originPath, char* fileName, char* destinationPath) 
 					break;
 				}
 				
-				int result = write(destinationFile, buffer, readBytesCount);
+				int result = write(destinationFile, buffor, readBytesCount);
 				
 				if(result == -1) {
 					ReportError(errno);
@@ -138,27 +143,23 @@ bool UpdateFile(char* originPath, char* fileName, char* destinationPath) {
 }
 
 bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool withDirectories) {
-	DIR* dir = opendir (dir_path);
-	char entry_path[PATH_MAX + 1];
-	struct dirent* entry;
 	List* originFiles = GetFilesFromDirectory(originDirectory);
 	List* destinationFiles = GetFilesFromDirectory(destinationDirectory);
 
 	bool result = true;
-
 	for(int i = 0; i < originFiles->length; i++) {
-		int index = IndexOf(destinationFiles, At(originFiles, i)->path);
-		File* current = At(originFiles, index);
+		File* current = At(originFiles, i);
+		int index = IndexOf(destinationFiles, current->path);
 		if(index >= 0) {
 			if(current->isDirectory && withDirectories) {
-				result &= UpdateDirectory(CombinePaths(originDirectory, current->path), CombinePaths(destinationDirectory, current->path), withDirectories)
+				result &= UpdateDirectory(CombinePaths(originDirectory, current->path), CombinePaths(destinationDirectory, current->path), withDirectories);
 			} else if(current->isDirectory == false) {
 				if(At(destinationFiles, index)->timestamp < current->timestamp) {
 					result &= UpdateFile(originDirectory, current->path, destinationDirectory);
 				}
 			}
 		} else {
-			if(current->isDirectory && withDirectories) {
+			if(current->isDirectory == true && withDirectories) {
 				//createDir
 				//Update new directory
 			} else if(current->isDirectory == false) {
@@ -168,7 +169,7 @@ bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool wit
 	}
     
 	for(int i = 0; i < destinationFiles->length; i++) {
-		File* current = At(destinationFiles, index);
+		File* current = At(destinationFiles, i);
 		if(IndexOf(originFiles, current->path) < 0) {
 			char* path = CombinePaths(destinationDirectory, current->path);
 			if(current->isDirectory) {
@@ -180,32 +181,33 @@ bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool wit
 		}
 	}
 
-    return true;
+    return result;
 }
 
 List* GetFilesFromDirectory(char* directoryPath) {
 	List* output = malloc(sizeof(List));
 	Init(output);
-
-	DIR* dir = opendir (dir_path);
-	char entry_path[PATH_MAX + 1];
+	DIR* dir = opendir (directoryPath);
+	int path_len = strlen(directoryPath);
 	struct dirent* entry;
-	while ((entry = readdir (dir)) != NULL) {
-        const char* type;
-        strncpy (entry_path + path_len, entry->d_name,
-        sizeof (entry_path) - path_len);
-        int type = GetFileType (entry_path);
-		File* temp = malloc(sizeof(File));
-		temp->isDirectory = true;
-		temp->path = CombinePaths("", entry->d_name);
-		
-		if(type == DIRECTORY_TYPE) {
-			temp->timestamp = -1;
-		} else {
-			temp->timestamp = GetTimestamp(entry_path);
+	while (dir != NULL && (entry = readdir (dir)) != NULL) {
+		if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) {
+			continue;
 		}
 
-		Add(list, temp);
+        char* path = CombinePaths(directoryPath, entry->d_name);
+        int type = GetFileType (path);
+		File* temp = malloc(sizeof(File));
+		temp->path = entry->d_name;
+		
+		if(type == DIRECTORY_TYPE) {
+			temp->isDirectory = true;
+			temp->timestamp = -1;
+		} else {
+			temp->isDirectory = false;
+			temp->timestamp = GetTimestamp(path);
+		}
+		Add(output, temp);
     }
 
 	return output;
