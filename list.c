@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 
 void Init(List* list) {
     list->head = NULL;
@@ -19,7 +20,7 @@ void Add(List *list, File *value)
     else
     {
         Node *temp = list->head;
-        while (temp->next == NULL)
+        while (temp->next != NULL)
         {
             temp = temp->next;
         }
@@ -65,6 +66,7 @@ int IndexOf(List *list, char* path)
         if (strcmp(temp->value->path, path) == 0) {
             return i;
         }
+        temp = temp->next;
     }
 
     return -1;
