@@ -19,4 +19,6 @@ List* GetFilesFromDirectory(char* directoryPath);
 
 bool UpdateDirectory(char* originDirectory, char* destinationDirectory, bool withDirectories);
 
+bool CreateAndSyncDirectory(char* originPath, char* destinationPath, char* directoryName, bool withDirectories);
+
 #endif
