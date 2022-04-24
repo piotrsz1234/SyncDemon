@@ -8,6 +8,9 @@
 #include <errno.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <sys/io.h>
+#include <sys/mman.h>
+
 #include "helper.h"
 #include "list.h"
 
@@ -159,7 +162,7 @@ bool ReadWriteCopyFile(char *originPath, char *fileName, char *destinationPath)
 	return output;
 }
 
-bool CreateAndSyncDirectory(char *originPath, char *destinationPath, char *directoryName, bool withDirectories)
+bool CreateAndSyncDirectory(char *originPath, char *destinationPath, char *directoryName, bool withDirectories, bool withMMap)
 {
 	mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
 	char *originDirectoryPath = CombinePaths(originPath, directoryName);
@@ -171,19 +174,23 @@ bool CreateAndSyncDirectory(char *originPath, char *destinationPath, char *direc
 	}
 	else
 	{
-		result &= UpdateDirectory(originDirectoryPath, destinationDirectoryPath, withDirectories);
+		result &= UpdateDirectory(originDirectoryPath, destinationDirectoryPath, withDirectories, withMMap);
 	}
 	free(originDirectoryPath);
 	free(destinationDirectoryPath);
 	return result;
 }
 
-bool UpdateFile(char *originPath, char *fileName, char *destinationPath)
+bool UpdateFile(char *originPath, char *fileName, char *destinationPath, bool useMMap)
 {
 	char *originFilePath = CombinePaths(originPath, fileName);
 	char *desitnationFilePath = CombinePaths(destinationPath, fileName);
-
-	bool result = DeleteFile(desitnationFilePath) && ReadWriteCopyFile(originPath, fileName, destinationPath);
+	bool result = DeleteFile(desitnationFilePath);
+	if(useMMap && result) {
+		result &= MMapWriteCopyFile(originPath, fileName, destinationPath);
+	} else if(result) {
+		result &= ReadWriteCopyFile(originPath, fileName, destinationPath);
+	}
 
 	free(originFilePath);
 	free(desitnationFilePath);
@@ -191,7 +198,7 @@ bool UpdateFile(char *originPath, char *fileName, char *destinationPath)
 	return result;
 }
 
-bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool withDirectories)
+bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool withDirectories, bool withMMap)
 {
 	List *originFiles = GetFilesFromDirectory(originDirectory);
 	List *destinationFiles = GetFilesFromDirectory(destinationDirectory);
@@ -204,13 +211,13 @@ bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool wit
 		{
 			if (current->isDirectory && withDirectories)
 			{
-				result &= UpdateDirectory(CombinePaths(originDirectory, current->path), CombinePaths(destinationDirectory, current->path), withDirectories);
+				result &= UpdateDirectory(CombinePaths(originDirectory, current->path), CombinePaths(destinationDirectory, current->path), withDirectories, withMMap);
 			}
 			else if (current->isDirectory == false)
 			{
 				if (At(destinationFiles, index)->timestamp < current->timestamp)
 				{
-					result &= UpdateFile(originDirectory, current->path, destinationDirectory);
+					result &= UpdateFile(originDirectory, current->path, destinationDirectory, withMMap);
 				}
 			}
 		}
@@ -218,11 +225,15 @@ bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool wit
 		{
 			if (current->isDirectory == true && withDirectories)
 			{
-				result &= CreateAndSyncDirectory(originDirectory, destinationDirectory, current->path, withDirectories);
+				result &= CreateAndSyncDirectory(originDirectory, destinationDirectory, current->path, withDirectories, withMMap);
 			}
 			else if (current->isDirectory == false)
 			{
-				result &= ReadWriteCopyFile(originDirectory, current->path, destinationDirectory);
+				if(withMMap) {
+					result &= MMapWriteCopyFile(originDirectory, current->path, destinationDirectory);
+				} else {
+					result &= ReadWriteCopyFile(originDirectory, current->path, destinationDirectory);
+				}
 			}
 		}
 	}
@@ -288,5 +299,68 @@ List *GetFilesFromDirectory(char *directoryPath)
 		Add(output, temp);
 	}
 	closedir(dir);
+	return output;
+}
+
+long int GetFileSize(char* filePath) {
+	struct stat st;
+	lstat(filePath, &st);
+	return st.st_size;
+}
+
+bool MMapWriteCopyFile(char* originPath, char* fileName, char* destinationPath) {
+	char *originFilePath = CombinePaths(originPath, fileName);
+	char *destinationFilePath = CombinePaths(destinationPath, fileName);
+	mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
+	bool output = true;
+
+	int originalFile = open(originFilePath, O_RDONLY);
+
+	if (originalFile == -1)
+	{
+		ReportError(errno);
+		output = false;
+	}
+	else
+	{
+		
+		long int fileSize = GetFileSize(originFilePath);
+
+		if (fileSize == 0)
+		{
+			ReportError(errno);
+		}
+		
+		void * region = mmap(NULL, fileSize,
+			PROT_READ | PROT_WRITE, MAP_PRIVATE,
+			originalFile, 0);
+
+		if(region == -1) {
+			ReportError(errno);
+		} else {
+			int destinationFile = open(destinationFilePath, O_WRONLY | O_TRUNC | O_CREAT, mode);
+			if (destinationFile == -1)
+			{
+				ReportError(errno);
+				output = false;
+			} else {
+				int result = write(destinationFile, region, fileSize);
+				if (result == -1)
+				{
+					close(destinationFile);
+					DeleteFile(destinationFilePath);
+					ReportError(errno);
+					output = false;
+				}
+				close(destinationFile);
+			}
+		}
+
+		close(originalFile);
+		munmap(region, fileSize);
+	}
+
+	free(originFilePath);
+	free(destinationFilePath);
 	return output;
 }

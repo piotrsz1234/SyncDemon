@@ -2,6 +2,6 @@
 #include <stdbool.h>
 
 int main() {
-    UpdateDirectory("/home/ja/Desktop/test1", "/home/ja/Desktop/test2", false);
+    UpdateDirectory("/mnt/c/Users/HP/Desktop/FileSync Test/origin", "/mnt/c/Users/HP/Desktop/FileSync Test/destination", true, false);
     return 0;
 }
