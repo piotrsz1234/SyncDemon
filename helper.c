@@ -26,12 +26,14 @@ void ReportError(int errNo)
 {
 	char message[10000];
 	GetErrorMessage(message, errNo);
-	syslog(LOG_MAKEPRI(LOG_SYSLOG, LOG_ERR), message);
+	syslog(LOG_ERR, message);
+	closelog();
 }
 
 void ReportTrace(char *text)
 {
-	syslog(LOG_MAKEPRI(LOG_SYSLOG, LOG_INFO), "SYNC DEMON: %s", text);
+	syslog(LOG_NOTICE, "SYNC DEMON: %s", text);
+	closelog();
 }
 
 bool DeleteFile(char *path)
@@ -150,6 +152,7 @@ bool ReadWriteCopyFile(char *originPath, char *fileName, char *destinationPath)
 				}
 
 				int result = write(destinationFile, buffor, readBytesCount);
+
 				if (result == -1)
 				{
 					ReportError(errno);
@@ -167,7 +170,7 @@ bool ReadWriteCopyFile(char *originPath, char *fileName, char *destinationPath)
 	return output;
 }
 
-bool CreateAndSyncDirectory(char *originPath, char *destinationPath, char *directoryName, bool withDirectories, int minSizeForMMap)
+bool CreateAndSyncDirectory(char *originPath, char *destinationPath, char *directoryName, bool withDirectories, int minSizeForMMap, long lastTimestamp)
 {
 	mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
 	char *originDirectoryPath = CombinePaths(originPath, directoryName);
@@ -179,7 +182,7 @@ bool CreateAndSyncDirectory(char *originPath, char *destinationPath, char *direc
 	}
 	else
 	{
-		result &= UpdateDirectory(originDirectoryPath, destinationDirectoryPath, withDirectories, minSizeForMMap);
+		result &= UpdateDirectory(originDirectoryPath, destinationDirectoryPath, withDirectories, minSizeForMMap, lastTimestamp);
 	}
 	free(originDirectoryPath);
 	free(destinationDirectoryPath);
@@ -190,28 +193,27 @@ bool UpdateFile(char *originPath, char *fileName, char *destinationPath, int min
 {
 	char *originFilePath = CombinePaths(originPath, fileName);
 	char *desitnationFilePath = CombinePaths(destinationPath, fileName);
-	char message[10000];
+	char* message = malloc(sizeof(char) * 10000);
 	sprintf(message, "Making copy of file: %s", originFilePath);
 	ReportTrace(message);
+	free(message);
 	bool result = DeleteFile(desitnationFilePath);
 	if(result == true && GetFileSize(originFilePath) >= minSizeForMMap * 1024 * 1024) {
 		result &= MMapWriteCopyFile(originPath, fileName, destinationPath);
 	} else if(result == true) {
 		result &= ReadWriteCopyFile(originPath, fileName, destinationPath);
 	}
-
 	free(originFilePath);
 	free(desitnationFilePath);
-
 	return result;
 }
 
-bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool withDirectories, int minSizeForMMap)
+bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool withDirectories, int minSizeForMMap, long lastTimestamp)
 {
 	List *originFiles = GetFilesFromDirectory(originDirectory);
 	List *destinationFiles = GetFilesFromDirectory(destinationDirectory);
 	bool result = true;
-	for (int i = 0; i < originFiles->length; i++)
+	 for (int i = 0; i < originFiles->length; i++)
 	{
 		File *current = At(originFiles, i);
 		int index = IndexOf(destinationFiles, current->path);
@@ -219,11 +221,12 @@ bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool wit
 		{
 			if (current->isDirectory && withDirectories)
 			{
-				result &= UpdateDirectory(CombinePaths(originDirectory, current->path), CombinePaths(destinationDirectory, current->path), withDirectories, minSizeForMMap);
+				result &= UpdateDirectory(CombinePaths(originDirectory, current->path), CombinePaths(destinationDirectory, current->path), withDirectories, minSizeForMMap, lastTimestamp);
 			}
 			else if (current->isDirectory == false)
 			{
-				if (At(destinationFiles, index)->timestamp >= current->timestamp)
+				long destinationTimeStamp = At(destinationFiles, index)->timestamp;
+				if (destinationTimeStamp > current->timestamp && destinationTimeStamp > lastTimestamp)
 				{
 					result &= UpdateFile(originDirectory, current->path, destinationDirectory, minSizeForMMap);
 				}
@@ -233,7 +236,7 @@ bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool wit
 		{
 			if (current->isDirectory == true && withDirectories)
 			{
-				result &= CreateAndSyncDirectory(originDirectory, destinationDirectory, current->path, withDirectories, minSizeForMMap);
+				result &= CreateAndSyncDirectory(originDirectory, destinationDirectory, current->path, withDirectories, minSizeForMMap, lastTimestamp);
 			}
 			else if (current->isDirectory == false)
 			{
@@ -247,11 +250,11 @@ bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool wit
 			}
 		}
 	}
-
+	char* message = malloc(sizeof(char) * 1000);
 	for (int i = 0; i < destinationFiles->length; i++)
 	{
 		File *current = At(destinationFiles, i);
-		char message[10000];
+		
 		if (IndexOf(originFiles, current->path) < 0)
 		{
 			char *path = CombinePaths(destinationDirectory, current->path);
@@ -269,6 +272,7 @@ bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool wit
 			free(path);
 		}
 	}
+	free(message);
 	Dispose(originFiles);
 	Dispose(destinationFiles);
 
@@ -296,7 +300,9 @@ List *GetFilesFromDirectory(char *directoryPath)
 		char *path = CombinePaths(directoryPath, entry->d_name);
 		int type = GetFileType(path);
 		File *temp = malloc(sizeof(File));
-		temp->path = entry->d_name;
+		char* copyOfFileName = malloc(sizeof(char) * (strlen(entry->d_name) + 5));
+		sprintf(copyOfFileName, "%s", entry->d_name);
+		temp->path = copyOfFileName;
 		if (type == DIRECTORY_TYPE)
 		{
 			temp->isDirectory = true;
