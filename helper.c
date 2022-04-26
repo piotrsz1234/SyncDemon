@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <sys/io.h>
 #include <sys/mman.h>
+#include <syslog.h>
 
 #include "helper.h"
 #include "list.h"
@@ -17,13 +18,20 @@
 #define FILE_TYPE 1
 #define DIRECTORY_TYPE 2
 
+void GetErrorMessage(char* message, int errno) {
+	sprintf(message, "SYNC DEMON: %s", strerror(errno));
+}
+
 void ReportError(int errNo)
 {
-	perror("");
+	char message[10000];
+	GetErrorMessage(message, errNo);
+	syslog(LOG_MAKEPRI(LOG_SYSLOG, LOG_ERR), message);
 }
 
 void ReportTrace(char *text)
 {
+	syslog(LOG_MAKEPRI(LOG_SYSLOG, LOG_INFO), "SYNC DEMON: %s", text);
 }
 
 bool DeleteFile(char *path)
@@ -182,6 +190,9 @@ bool UpdateFile(char *originPath, char *fileName, char *destinationPath, int min
 {
 	char *originFilePath = CombinePaths(originPath, fileName);
 	char *desitnationFilePath = CombinePaths(destinationPath, fileName);
+	char message[10000];
+	sprintf(message, "Making copy of file: %s", originFilePath);
+	ReportTrace(message);
 	bool result = DeleteFile(desitnationFilePath);
 	if(result == true && GetFileSize(originFilePath) >= minSizeForMMap * 1024 * 1024) {
 		result &= MMapWriteCopyFile(originPath, fileName, destinationPath);
@@ -240,17 +251,21 @@ bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool wit
 	for (int i = 0; i < destinationFiles->length; i++)
 	{
 		File *current = At(destinationFiles, i);
+		char message[10000];
 		if (IndexOf(originFiles, current->path) < 0)
 		{
 			char *path = CombinePaths(destinationDirectory, current->path);
 			if (current->isDirectory)
 			{
+				sprintf(message, "Removing directory: %s", path);
 				result &= DeleteDirectory(path);
 			}
 			else
 			{
+				sprintf(message, "Removing file: %s", path);
 				result &= DeleteFile(path);
 			}
+			ReportTrace(message);
 			free(path);
 		}
 	}

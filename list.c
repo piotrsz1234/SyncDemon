@@ -78,7 +78,7 @@ void Dispose(List* list) {
     for(int i = 0; i < list->length; i++) {
         temp2 = temp;
         temp = temp->next;
-        free(temp2->value->path);
+        //free(temp2->value->path);
         free(temp2->value);
         free(temp2);
     }
