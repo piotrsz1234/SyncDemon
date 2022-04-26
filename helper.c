@@ -18,15 +18,15 @@
 #define FILE_TYPE 1
 #define DIRECTORY_TYPE 2
 
-void GetErrorMessage(char* message, int errno) {
-	sprintf(message, "SYNC DEMON: %s", strerror(errno));
+void GetErrorMessage(char* message, int errNo) {
+	sprintf(message, "SYNC DEMON: %s", strerror(errNo));
 }
 
 void ReportError(int errNo)
 {
 	char message[10000];
 	GetErrorMessage(message, errNo);
-	syslog(LOG_ERR, message);
+	syslog(LOG_ERR, "%s", message);
 	closelog();
 }
 
@@ -356,7 +356,7 @@ bool MMapWriteCopyFile(char* originPath, char* fileName, char* destinationPath) 
 			PROT_READ | PROT_WRITE, MAP_PRIVATE,
 			originalFile, 0);
 
-		if(region == -1) {
+		if(((long) region) == -1) {
 			ReportError(errno);
 		} else {
 			int destinationFile = open(destinationFilePath, O_WRONLY | O_TRUNC | O_CREAT, mode);
