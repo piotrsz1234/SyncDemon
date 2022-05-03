@@ -180,12 +180,18 @@ bool CreateAndSyncDirectory(char *originPath, char *destinationPath, char *direc
 	char *originDirectoryPath = CombinePaths(originPath, directoryName);
 	char *destinationDirectoryPath = CombinePaths(destinationPath, directoryName);
 	bool result = true;
+	char message[10000];
+	
 	if (mkdir(destinationDirectoryPath, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
 	{
+		sprintf(message, "Failed to create directory: %s", originDirectoryPath);
+		ReportTrace(message);
 		result = false;
 	}
 	else
 	{
+		sprintf(message, "Copying of directory: %s", originDirectoryPath);
+		ReportTrace(message);
 		result &= UpdateDirectory(originDirectoryPath, destinationDirectoryPath, withDirectories, minSizeForMMap);
 	}
 	free(originDirectoryPath);
@@ -206,6 +212,9 @@ bool UpdateFile(char *originPath, char *fileName, char *destinationPath, int min
 		result &= MMapWriteCopyFile(originPath, fileName, destinationPath);
 	} else if(result == true) {
 		result &= ReadWriteCopyFile(originPath, fileName, destinationPath);
+	} else {
+		sprintf(message, "Failed to copy file: %s", originFilePath);
+		ReportTrace(message);
 	}
 	free(originFilePath);
 	free(desitnationFilePath);
@@ -216,6 +225,7 @@ bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool wit
 {
 	List *originFiles = GetFilesFromDirectory(originDirectory);
 	List *destinationFiles = GetFilesFromDirectory(destinationDirectory);
+	char* message = malloc(sizeof(char) * 1000);
 	bool result = true;
 	 for (int i = 0; i < originFiles->length; i++)
 	{
@@ -246,6 +256,8 @@ bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool wit
 			else if (current->isDirectory == false)
 			{
 				char* originFilePath = CombinePaths(originDirectory, current->path);
+				sprintf(message, "Making copy of file: %s", originFilePath);
+				ReportTrace(message);
 				if(GetFileSize(originFilePath) >= minSizeForMMap * 1024 * 1024) {
 					result &= MMapWriteCopyFile(originDirectory, current->path, destinationDirectory);
 				} else {
@@ -255,7 +267,7 @@ bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool wit
 			}
 		}
 	}
-	char* message = malloc(sizeof(char) * 1000);
+	
 	for (int i = 0; i < destinationFiles->length; i++)
 	{
 		File *current = At(destinationFiles, i);
