@@ -11,6 +11,7 @@
 #include <sys/io.h>
 #include <sys/mman.h>
 #include <syslog.h>
+#include <sys/time.h>
 
 #include "helper.h"
 #include "list.h"
@@ -163,14 +164,17 @@ bool ReadWriteCopyFile(char *originPath, char *fileName, char *destinationPath)
 			} while (readBytesCount == bufforSize);
 		}
 	}
-
+	struct timeval dates[2];
+	dates[0].tv_sec = 0;
+	dates[1].tv_sec = GetTimestamp(originFilePath);
+	utimes(destinationFilePath, dates);
 	free(buffor);
 	free(originFilePath);
 	free(destinationFilePath);
 	return output;
 }
 
-bool CreateAndSyncDirectory(char *originPath, char *destinationPath, char *directoryName, bool withDirectories, int minSizeForMMap, long lastTimestamp)
+bool CreateAndSyncDirectory(char *originPath, char *destinationPath, char *directoryName, bool withDirectories, int minSizeForMMap)
 {
 	mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
 	char *originDirectoryPath = CombinePaths(originPath, directoryName);
@@ -182,7 +186,7 @@ bool CreateAndSyncDirectory(char *originPath, char *destinationPath, char *direc
 	}
 	else
 	{
-		result &= UpdateDirectory(originDirectoryPath, destinationDirectoryPath, withDirectories, minSizeForMMap, lastTimestamp);
+		result &= UpdateDirectory(originDirectoryPath, destinationDirectoryPath, withDirectories, minSizeForMMap);
 	}
 	free(originDirectoryPath);
 	free(destinationDirectoryPath);
@@ -208,7 +212,7 @@ bool UpdateFile(char *originPath, char *fileName, char *destinationPath, int min
 	return result;
 }
 
-bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool withDirectories, int minSizeForMMap, long lastTimestamp)
+bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool withDirectories, int minSizeForMMap)
 {
 	List *originFiles = GetFilesFromDirectory(originDirectory);
 	List *destinationFiles = GetFilesFromDirectory(destinationDirectory);
@@ -221,12 +225,13 @@ bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool wit
 		{
 			if (current->isDirectory && withDirectories)
 			{
-				result &= UpdateDirectory(CombinePaths(originDirectory, current->path), CombinePaths(destinationDirectory, current->path), withDirectories, minSizeForMMap, lastTimestamp);
+				result &= UpdateDirectory(CombinePaths(originDirectory, current->path), CombinePaths(destinationDirectory, current->path), withDirectories, minSizeForMMap);
 			}
 			else if (current->isDirectory == false)
 			{
 				long destinationTimeStamp = At(destinationFiles, index)->timestamp;
-				if (destinationTimeStamp > current->timestamp && destinationTimeStamp > lastTimestamp)
+				
+				if (destinationTimeStamp > current->timestamp)
 				{
 					result &= UpdateFile(originDirectory, current->path, destinationDirectory, minSizeForMMap);
 				}
@@ -236,7 +241,7 @@ bool UpdateDirectory(char *originDirectory, char *destinationDirectory, bool wit
 		{
 			if (current->isDirectory == true && withDirectories)
 			{
-				result &= CreateAndSyncDirectory(originDirectory, destinationDirectory, current->path, withDirectories, minSizeForMMap, lastTimestamp);
+				result &= CreateAndSyncDirectory(originDirectory, destinationDirectory, current->path, withDirectories, minSizeForMMap);
 			}
 			else if (current->isDirectory == false)
 			{
@@ -344,7 +349,6 @@ bool MMapWriteCopyFile(char* originPath, char* fileName, char* destinationPath) 
 	}
 	else
 	{
-		
 		long int fileSize = GetFileSize(originFilePath);
 
 		if (fileSize == 0)
@@ -380,8 +384,21 @@ bool MMapWriteCopyFile(char* originPath, char* fileName, char* destinationPath) 
 		close(originalFile);
 		munmap(region, fileSize);
 	}
-
+	struct timeval dates[2];
+	dates[0].tv_sec = 0;
+	dates[1].tv_sec = GetTimestamp(originFilePath);
+	utimes(destinationFilePath, dates);
 	free(originFilePath);
 	free(destinationFilePath);
 	return output;
+}
+
+bool DirectoryExists(char* path) {
+	struct stat st;
+	int result = lstat(path, &st);
+	if(result != 0) {
+		return false;
+	}
+	
+	return S_ISDIR(st.st_mode);
 }

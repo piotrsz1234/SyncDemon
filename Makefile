@@ -6,3 +6,6 @@ $(OBJ): list.h helper.h
 .PHONY: clean
 clean:
 	rm -f *.o demon
+generate:
+	gcc list.h list.c helper.h helper.c generator.c -o generator
+	./generator
