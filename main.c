@@ -53,6 +53,8 @@ bool ParseArguments(int argc, char** argv) {
             printf("Destination path not specified!\n");
             return false;
         }
+        originPath = argv[optind++];
+        destinationPath = argv[optind];
     } else {
         printf("Origin path nor Destination paths specified!\n");
         return false;
@@ -63,12 +65,12 @@ bool ParseArguments(int argc, char** argv) {
 bool CheckPaths() {
     bool result = true;
     if(!DirectoryExists(originPath)) {
-        printf("Origin path specified does not exist or is not accessible\n");
+        printf("Origin path specified does not exist or is not accessible\nPath: %s\n", originPath);
         result = false;
     }
 
     if(!DirectoryExists(destinationPath)) {
-        printf("Destination path specified does not exist or is not accessible\n");
+        printf("Destination path specified does not exist or is not accessible\nPath: %s\n", destinationPath);
         result = false;
     }
 
@@ -131,7 +133,7 @@ int main(int argc, char **argv) {
     while (true) {
         ReportTrace("Demon has been awakened from slumber");
         UpdateDirectory(originPath, destinationPath, recursive, mmapMinSize);
-        sleep(sleepTime);
+        sleep(sleepTime * 60);
     }
 
     return 0;
